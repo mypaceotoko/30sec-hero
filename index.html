@@ -14,6 +14,18 @@
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;touch-action:manipulation}
 html,body{width:100%;height:100%;background:#000;overflow:hidden;font-family:'DotGothic16',monospace;color:#fff}
 #stage{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;background:#000}
+/* ===== ゲーム画面まわりの余白(ドット絵風の夜空) ===== */
+#screenArea{flex:1 1 auto;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden;background:
+ radial-gradient(circle at 85% 14%, #fff8e4 0 12px, rgba(255,233,168,.4) 12px 24px, rgba(255,233,168,0) 24px 42px),
+ radial-gradient(circle at 14% 18%, rgba(255,255,255,.9) 0 2px, transparent 3px),
+ radial-gradient(circle at 78% 55%, rgba(255,255,255,.7) 0 2px, transparent 3px),
+ radial-gradient(circle at 46% 30%, rgba(255,255,255,.85) 0 1.5px, transparent 2.5px),
+ radial-gradient(circle at 30% 72%, rgba(200,210,255,.8) 0 2px, transparent 3px),
+ radial-gradient(circle at 8% 86%, rgba(255,255,255,.6) 0 1.5px, transparent 2.5px),
+ radial-gradient(circle at 60% 88%, rgba(200,210,255,.7) 0 1.5px, transparent 2.5px),
+ radial-gradient(circle at 92% 82%, rgba(255,255,255,.6) 0 2px, transparent 3px),
+ radial-gradient(circle at 55% 14%, rgba(255,255,255,.5) 0 1.5px, transparent 2.5px),
+ linear-gradient(180deg,#1c1a4a 0%,#161342 45%,#100e30 100%)}
 #cvwrap{position:relative;width:100%;max-width:760px;margin:0 auto;flex:0 0 auto}
 canvas#cv{display:block;width:100%;image-rendering:pixelated;image-rendering:crisp-edges;background:#000}
 
@@ -77,7 +89,7 @@ canvas#cv{display:block;width:100%;image-rendering:pixelated;image-rendering:cri
 .bigbtn:active{transform:translateY(2px)}
 
 /* ===== バーチャルパッド ===== */
-#controls{flex:1 1 auto;width:100%;max-width:760px;position:relative;min-height:150px;background:
+#controls{flex:0 0 200px;width:100%;max-width:760px;position:relative;background:
  repeating-linear-gradient(45deg,#15151d 0 8px,#101018 8px 16px)}
 #dpad{position:absolute;left:14px;bottom:14px;width:138px;height:138px}
 .dbtn{position:absolute;width:46px;height:46px;background:#2c2c40;border:2px solid #555a80;border-radius:9px;color:#cfd2ff;font-size:18px;display:flex;align-items:center;justify-content:center;font-family:inherit}
@@ -88,12 +100,14 @@ canvas#cv{display:block;width:100%;image-rendering:pixelated;image-rendering:cri
 #bbtn{position:absolute;right:92px;bottom:22px;width:60px;height:60px;border-radius:50%;background:#2858b0;border:3px solid #90b8ff;color:#fff;font-size:21px;font-family:inherit;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 0 #102860}
 #bbtn:active{transform:translateY(3px);box-shadow:0 1px 0 #102860}
 #bbtn small{position:absolute;bottom:-18px;font-size:10px;color:#89a;white-space:nowrap}
-#fleebtn{position:absolute;right:170px;bottom:60px;display:none;font-family:inherit;background:#444;border:2px solid #999;color:#fff;border-radius:8px;padding:8px 14px;font-size:15px}
+#fleebtn{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:none;z-index:25;font-family:inherit;background:var(--win-bg);border:3px solid var(--win-border);color:#fff;border-radius:8px;padding:9px 28px;font-size:15px;letter-spacing:2px;box-shadow:0 4px 0 rgba(0,0,0,.5);text-shadow:1px 1px 0 #000}
+#fleebtn:active{transform:translate(-50%,3px);box-shadow:0 1px 0 rgba(0,0,0,.5)}
 #padhint{position:absolute;top:8px;width:100%;text-align:center;font-size:11px;color:#667}
 </style>
 </head>
 <body>
 <div id="stage">
+  <div id="screenArea">
   <div id="cvwrap">
     <canvas id="cv" width="352" height="198"></canvas>
 
@@ -140,6 +154,8 @@ canvas#cv{display:block;width:100%;image-rendering:pixelated;image-rendering:cri
       <button class="bigbtn" id="endBtn">タイトルへ</button>
     </div>
   </div>
+  <button id="fleebtn">にげる!</button>
+  </div>
 
   <div id="controls">
     <div id="padhint">十字キー:移動 / A:決定 / B:やくそう・もどる (キー: 矢印+Enter / X)</div>
@@ -149,7 +165,6 @@ canvas#cv{display:block;width:100%;image-rendering:pixelated;image-rendering:cri
       <button class="dbtn" id="d-right">▶</button>
       <button class="dbtn" id="d-down">▼</button>
     </div>
-    <button id="fleebtn">にげる!</button>
     <button id="bbtn">B</button>
     <button id="abtn">A</button>
   </div>
