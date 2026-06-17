@@ -103,6 +103,13 @@ canvas#cv{display:block;width:100%;image-rendering:pixelated;image-rendering:cri
 #fleebtn{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:none;z-index:25;font-family:inherit;background:var(--win-bg);border:3px solid var(--win-border);color:#fff;border-radius:8px;padding:9px 28px;font-size:15px;letter-spacing:2px;box-shadow:0 4px 0 rgba(0,0,0,.5);text-shadow:1px 1px 0 #000}
 #fleebtn:active{transform:translate(-50%,3px);box-shadow:0 1px 0 rgba(0,0,0,.5)}
 #padhint{position:absolute;top:8px;width:100%;text-align:center;font-size:11px;color:#667}
+#sysbtn{position:absolute;right:14px;top:26px;width:54px;height:30px;display:none;align-items:center;justify-content:center;
+ background:#23237a;border:2px solid #aab0ff;border-radius:8px;color:#fff;font-family:inherit;font-size:12px;letter-spacing:1px;
+ box-shadow:0 3px 0 rgba(0,0,0,.5);text-shadow:1px 1px 0 #000;z-index:26}
+#sysbtn:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.5)}
+#titleContinue{display:none;margin-top:14px;font-family:inherit;font-size:min(4.4vw,18px);color:#fff;background:#23237a;
+ border:3px solid #e8e8ff;border-radius:8px;padding:8px 26px;letter-spacing:2px;cursor:pointer;text-shadow:1px 1px 0 #000;z-index:2}
+#titleContinue:active{transform:translateY(2px)}
 </style>
 </head>
 <body>
@@ -128,6 +135,7 @@ canvas#cv{display:block;width:100%;image-rendering:pixelated;image-rendering:cri
       <div id="titleKana">ゆうしゃ さんじゅうびょう</div>
       <div id="titleSub">SUPER SPEED HERO</div>
       <div id="titlePress">PRESS ANY BUTTON</div>
+      <button id="titleContinue">▶ つづきから</button>
       <div id="titleCopy">RETRO SPEED RPG - MADE WITH CLAUDE</div>
     </div>
 
@@ -159,6 +167,7 @@ canvas#cv{display:block;width:100%;image-rendering:pixelated;image-rendering:cri
 
   <div id="controls">
     <div id="padhint">十字キー:移動 / A:決定 / B:やくそう・もどる (キー: 矢印+Enter / X)</div>
+    <button id="sysbtn">☰メニュー</button>
     <div id="dpad">
       <button class="dbtn" id="d-up">▲</button>
       <button class="dbtn" id="d-left">◀</button>
@@ -781,6 +790,7 @@ function drawEnemy(kind, x, y, frame){
 const $ = id => document.getElementById(id);
 const msgwin=$('msgwin'), msgname=$('msgname'), msgtext=$('msgtext');
 const menuwin=$('menuwin'), menutitle=$('menutitle'), menubody=$('menubody');
+const sysbtn=$('sysbtn');
 const overlays={ title:$('titleScr'), story:$('storyScr'), result:$('resultScr'), over:$('overScr'), end:$('endScr') };
 function showOverlay(k){ for(const key in overlays) overlays[key].classList.toggle('show', key===k); }
 function hideOverlays(){ showOverlay(null); }
@@ -915,6 +925,49 @@ function openShop(sel=0){
   openMenu('🛒 ショップ', items, statusLine(), sel);
 }
 
+/* ---------- セーブ / ロード (localStorage) ---------- */
+const SAVE_KEY = 'yusha30sec_save_v1';
+const SAVE_FIELDS = ['stage','lv','exp','expNext','hp','maxhp','baseAtk','baseDef',
+  'weapon','armor','herbs','herbVal','gold','mercAtk','timer','goddessCount',
+  'bridgeFixed','px','py','face','kingSeen','snapshot'];
+function hasSave(){ try{ return !!localStorage.getItem(SAVE_KEY); }catch(e){ return false; } }
+function saveGame(){
+  const d = {};
+  SAVE_FIELDS.forEach(k=>{ d[k] = G[k]; });
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify(d)); return true; }catch(e){ return false; }
+}
+function loadGame(){
+  let d; try{ d = JSON.parse(localStorage.getItem(SAVE_KEY)); }catch(e){}
+  if(!d) return false;
+  // 戦闘などの一時状態を破棄してフィールドに復帰
+  G.battle = null; $('fleebtn').style.display='none';
+  SAVE_FIELDS.forEach(k=>{ if(d[k]!==undefined) G[k] = d[k]; });
+  G.vx=0; G.vy=0; G.moving=false; G.lastTick=-1; G.shake=0; G.flashRed=0;
+  G.scene = 'field';
+  closeMenu(); hideOverlays(); bgmStop();
+  return true;
+}
+
+/* ---------- システムメニュー (ポーズ / どこでもセーブ・ロード) ---------- */
+function openSystemMenu(){
+  if(G.scene!=='field' && G.scene!=='battle') return;
+  if(msgOpen) return;
+  if(menuOpen){ if(currentMenu==='system') closeMenu(); return; } // 他メニュー中は無視 / 自分ならトグルで閉じる
+  audio();
+  const items = [];
+  items.push({label:'💾 セーブする', fn:()=>{
+    const ok = saveGame(); SE.buy(); closeMenu();
+    say(ok ? '<em>ぼうけんのきろく</em>を<br>セーブした!' : 'セーブに しっぱいした…');
+  }});
+  items.push({label:'📂 ロードする', disabled:!hasSave(), fn:()=>{
+    closeMenu(); SE.goddess();
+    if(loadGame()) say('<em>ぼうけんのきろく</em>を<br>よみこんだ!');
+  }});
+  items.push({label:'▶ ゲームにもどる (B)', fn:closeMenu});
+  currentMenu='system';
+  openMenu('☰ メニュー 〜時間停止中〜', items, statusLine());
+}
+
 /* ---------- ステージ管理 ---------- */
 function startStage(idx, fromRetry=false){
   G.stage = idx;
@@ -987,6 +1040,12 @@ function endBattle(victory){
   }
 }
 function addDmg(b, x, y, val, color){ b.dmgPops.push({x,y,val,t:0,color}); }
+/* ダメージ計算: 防御は攻撃の半分ぶん軽減。ただし攻撃力の18%は必ず通す
+   (単純な引き算だと後半で防御が攻撃を上回り常に1になってしまうため) */
+function calcDmg(aAtk, dDef){
+  const raw = Math.max(aAtk*0.18, aAtk - dDef*0.5);
+  return Math.max(1, Math.floor(raw + Math.random()*4));
+}
 function battleUpdate(dt){
   const b=G.battle; if(!b) return;
   b.t += dt;
@@ -998,13 +1057,13 @@ function battleUpdate(dt){
     if(b.t>0.34){
       b.t=0; b.turn++;
       if(b.turn%2===1){ // 勇者の攻撃
-        const dmg = Math.max(1, atk() - b.enemy.def + (Math.random()*4|0));
+        const dmg = calcDmg(atk(), b.enemy.def);
         b.ehp -= dmg; SE.heroHit(); G.shake=0.12;
         addDmg(b, b.enemyX+10, 90, dmg, '#fff');
         b.dashing={who:'hero',t:0};
         if(b.ehp<=0){ b.ehp=0; b.phase='win'; b.t=0; }
       } else { // 敵の攻撃
-        const dmg = Math.max(1, b.enemy.atk - def() + (Math.random()*4|0));
+        const dmg = calcDmg(b.enemy.atk, def());
         G.hp -= dmg; SE.hit(); G.shake=0.15; G.flashRed=0.15;
         addDmg(b, b.heroX+4, 90, dmg, '#ff6a5a');
         b.dashing={who:'enemy',t:0};
@@ -1227,8 +1286,15 @@ function renderBattle(){
     ctx.fillText(p.val, p.x, p.y - p.t*30);
   });
   if(b.isBoss){
-    ctx.fillStyle='rgba(255,40,120,'+(0.4+0.3*Math.sin(frame/8))+')';
-    ctx.font='10px DotGothic16'; ctx.fillText('!! BOSS BATTLE !!', VW/2-44, 22+HUD_H);
+    ctx.font='10px DotGothic16';
+    const bx=VW/2-44, by=22+HUD_H;
+    // 黒フチでくっきり
+    ctx.fillStyle='rgba(0,0,0,.85)';
+    ctx.fillText('!! BOSS BATTLE !!', bx-1, by); ctx.fillText('!! BOSS BATTLE !!', bx+1, by);
+    ctx.fillText('!! BOSS BATTLE !!', bx, by-1); ctx.fillText('!! BOSS BATTLE !!', bx, by+1);
+    // 本体(明滅は強めに保ち、薄くなりすぎないよう下限0.7)
+    ctx.fillStyle='rgba(255,70,140,'+(0.85+0.15*Math.sin(frame/6))+')';
+    ctx.fillText('!! BOSS BATTLE !!', bx, by);
   }
   ctx.restore();
 }
@@ -1324,6 +1390,7 @@ $('abtn').addEventListener('pointerdown', e=>{ e.preventDefault(); pressA(); });
 $('bbtn').addEventListener('pointerdown', e=>{ e.preventDefault(); pressB(); });
 msgwin.addEventListener('pointerdown', e=>{ e.preventDefault(); nextMsg(); });
 $('fleebtn').addEventListener('pointerdown', e=>{ e.preventDefault(); audio(); flee(); });
+$('sysbtn').addEventListener('pointerdown', e=>{ e.preventDefault(); openSystemMenu(); });
 
 window.addEventListener('keydown', e=>{
   audio();
@@ -1338,7 +1405,12 @@ window.addEventListener('keydown', e=>{
   if(k==='ArrowRight'||k==='d') input.right=true;
   if(k==='Enter'||k===' '||k==='z'){ e.preventDefault(); pressA(); }
   if(k==='x'||k==='Backspace'){ e.preventDefault(); pressB(); }
-  if(k==='Escape'){ if(G.battle) flee(); else pressB(); }
+  if(k==='p'||k==='P'){ e.preventDefault(); openSystemMenu(); }
+  if(k==='Escape'){
+    if(menuOpen) pressB();
+    else if(G.battle) flee();
+    else openSystemMenu();
+  }
 });
 window.addEventListener('keyup', e=>{
   const k=e.key;
@@ -1354,14 +1426,23 @@ function titleStart(){
   SE.lvup();
   startStage(0);
 }
+function showTitle(){
+  showOverlay('title');
+  $('titleContinue').style.display = hasSave()? 'inline-block':'none';
+}
 overlays.title.addEventListener('pointerdown', ()=>{ audio(); titleStart(); });
+$('titleContinue').addEventListener('pointerdown', e=>{
+  e.preventDefault(); e.stopPropagation(); audio();
+  if(loadGame()){ SE.goddess(); say('<em>ぼうけんのきろく</em>から<br>ぼうけんを さいかいする!'); }
+});
 $('resultBtn').onclick = ()=>{ audio(); startStage(G.stage+1); };
 $('retryBtn').onclick = ()=>{ audio(); startStage(G.stage, true); };
 $('endBtn').onclick = ()=>{
   audio();
   Object.assign(G,{ scene:'title', stage:0, gold:100, weapon:null, armor:null, herbs:0 });
-  showOverlay('title');
+  showTitle();
 };
+$('titleContinue').style.display = hasSave()? 'inline-block':'none';
 
 /* ---------- メインループ ---------- */
 let last=performance.now();
@@ -1371,8 +1452,8 @@ function loop(now){
   if(G.flashRed>0) G.flashRed-=dt;
   if(G.scene==='field') fieldUpdate(dt);
   else if(G.scene==='battle'){
-    // バトル中も時間は減る!
-    if(!msgOpen){
+    // バトル中も時間は減る!(メニュー/メッセージ中は停止)
+    if(!msgOpen && !menuOpen){
       G.timer-=dt;
       const sec=Math.ceil(G.timer);
       if(G.timer<=5.2 && sec!==G.lastTick){ G.lastTick=sec; SE.tick(); }
@@ -1381,6 +1462,9 @@ function loop(now){
     }
   }
   if(AC){ const want = desiredBGM(); if(want && want!==bgm.name) bgmPlay(want); }
+  // システムメニューボタンはプレイ中(フィールド/バトル)のみ表示
+  const showSys = (G.scene==='field' || G.scene==='battle');
+  if(sysbtn._shown !== showSys){ sysbtn.style.display = showSys? 'flex':'none'; sysbtn._shown = showSys; }
   render();
   requestAnimationFrame(loop);
 }
